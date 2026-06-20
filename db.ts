@@ -1,19 +1,11 @@
-import { createDB } from "mioki";
-import { ensureDataDir } from "mioku";
+import { Database } from "bun:sqlite";
 import * as path from "path";
+import { ensureDataDir } from "mioku";
 import type {
   EjaculationRecord,
-  ImpactStore,
   RankEntry,
-  UserData,
 } from "./types";
 import { getToday, nowSeconds } from "./utils";
-
-const DEFAULT_STORE: ImpactStore = {
-  users: {},
-  groups: {},
-  ejaculations: {},
-};
 
 export const DEFAULT_JJ_LENGTH = 10.0;
 
@@ -33,121 +25,201 @@ export interface ImpactDatabase {
   punishInactiveUsers(): Promise<number>;
   /** 全表按 jjLength 倒序排列 */
   getRanking(): RankEntry[];
+  close(): void;
+}
+
+interface UserRow {
+  user_id: number;
+  jj_length: number;
+  last_masturbation_time: number;
 }
 
 export async function initImpactDatabase(): Promise<ImpactDatabase> {
   const dir = ensureDataDir("impact");
-  const file = path.join(dir, "impact.json");
-  const db = await createDB<ImpactStore>(file, {
-    defaultData: structuredClone(DEFAULT_STORE),
-  });
+  const dbPath = path.join(dir, "impact.db");
+  const db = new Database(dbPath);
 
-  // hand-edited / partial files：兜底
-  if (!db.data.users) db.data.users = {};
-  if (!db.data.groups) db.data.groups = {};
-  if (!db.data.ejaculations) db.data.ejaculations = {};
+  db.exec("PRAGMA journal_mode = WAL");
 
-  function getUserRow(userId: number): UserData | undefined {
-    return db.data.users[String(userId)];
-  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      user_id INTEGER PRIMARY KEY,
+      jj_length REAL NOT NULL,
+      last_masturbation_time INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS groups (
+      group_id INTEGER PRIMARY KEY,
+      allow INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS ejaculations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      volume REAL NOT NULL,
+      UNIQUE(user_id, date)
+    );
+    CREATE INDEX IF NOT EXISTS idx_ejaculations_user ON ejaculations(user_id, date);
+  `);
+
+  const stmts = {
+    insertUser: db.prepare(`
+      INSERT INTO users (user_id, jj_length, last_masturbation_time)
+      VALUES ($userId, $jjLength, $lastMasturbationTime)
+      ON CONFLICT(user_id) DO NOTHING
+    `),
+    upsertActivity: db.prepare(`
+      INSERT INTO users (user_id, jj_length, last_masturbation_time)
+      VALUES ($userId, $jjLength, $lastMasturbationTime)
+      ON CONFLICT(user_id) DO UPDATE SET
+        last_masturbation_time = $lastMasturbationTime
+    `),
+    getUser: db.prepare(
+      `SELECT jj_length, last_masturbation_time FROM users WHERE user_id = $userId`,
+    ),
+    updateJjLength: db.prepare(`
+      UPDATE users
+      SET jj_length = $jjLength, last_masturbation_time = $lastMasturbationTime
+      WHERE user_id = $userId
+    `),
+    getGroup: db.prepare(
+      `SELECT allow FROM groups WHERE group_id = $groupId`,
+    ),
+    upsertGroup: db.prepare(`
+      INSERT INTO groups (group_id, allow) VALUES ($groupId, $allow)
+      ON CONFLICT(group_id) DO UPDATE SET allow = $allow
+    `),
+    upsertEjaculation: db.prepare(`
+      INSERT INTO ejaculations (user_id, date, volume)
+      VALUES ($userId, $date, $volume)
+      ON CONFLICT(user_id, date) DO UPDATE SET volume = volume + $volume
+    `),
+    getEjaculationData: db.prepare(`
+      SELECT date, volume FROM ejaculations
+      WHERE user_id = $userId
+      ORDER BY date ASC
+    `),
+    getTodayEjaculation: db.prepare(`
+      SELECT volume FROM ejaculations
+      WHERE user_id = $userId AND date = $date
+    `),
+    selectAllUsers: db.prepare(
+      `SELECT user_id, jj_length, last_masturbation_time FROM users`,
+    ),
+    decrementJjLength: db.prepare(
+      `UPDATE users SET jj_length = $jjLength WHERE user_id = $userId`,
+    ),
+  };
 
   return {
     isUserInTable(userId) {
-      return getUserRow(userId) != null;
+      return stmts.getUser.get({ $userId: userId }) != null;
     },
 
     async addNewUser(userId) {
-      if (getUserRow(userId)) return;
-      db.data.users[String(userId)] = {
-        jjLength: DEFAULT_JJ_LENGTH,
-        lastMasturbationTime: nowSeconds(),
-      };
-      await db.write();
+      stmts.insertUser.run({
+        $userId: userId,
+        $jjLength: DEFAULT_JJ_LENGTH,
+        $lastMasturbationTime: nowSeconds(),
+      });
     },
 
     async updateActivity(userId) {
-      const key = String(userId);
-      let row = db.data.users[key];
-      if (!row) {
-        row = {
-          jjLength: DEFAULT_JJ_LENGTH,
-          lastMasturbationTime: nowSeconds(),
-        };
-        db.data.users[key] = row;
-      } else {
-        row.lastMasturbationTime = nowSeconds();
-      }
-      await db.write();
+      stmts.upsertActivity.run({
+        $userId: userId,
+        $jjLength: DEFAULT_JJ_LENGTH,
+        $lastMasturbationTime: nowSeconds(),
+      });
     },
 
     getJjLength(userId) {
-      return getUserRow(userId)?.jjLength ?? 0;
+      const row = stmts.getUser.get({ $userId: userId }) as
+        | Pick<UserRow, "jj_length">
+        | null;
+      return row?.jj_length ?? 0;
     },
 
     async addJjLength(userId, delta) {
-      const row = getUserRow(userId);
+      const row = stmts.getUser.get({ $userId: userId }) as
+        | Pick<UserRow, "jj_length">
+        | null;
       if (!row) return;
-      row.jjLength = roundTo3(row.jjLength + delta);
-      row.lastMasturbationTime = nowSeconds();
-      await db.write();
+      stmts.updateJjLength.run({
+        $userId: userId,
+        $jjLength: roundTo3(row.jj_length + delta),
+        $lastMasturbationTime: nowSeconds(),
+      });
     },
 
     isGroupAllowed(groupId) {
-      return Boolean(db.data.groups[String(groupId)]?.allow);
+      const row = stmts.getGroup.get({ $groupId: groupId }) as
+        | { allow: number }
+        | null;
+      return Boolean(row?.allow);
     },
 
     async setGroupAllow(groupId, allow) {
-      const key = String(groupId);
-      db.data.groups[key] = { allow };
-      await db.write();
+      stmts.upsertGroup.run({
+        $groupId: groupId,
+        $allow: allow ? 1 : 0,
+      });
     },
 
     async insertEjaculation(userId, volume) {
-      const key = String(userId);
-      const date = getToday();
-      const list = (db.data.ejaculations[key] ??= []);
-      const today = list.find((r) => r.date === date);
-      if (today) {
-        today.volume = roundTo3(today.volume + volume);
-      } else {
-        list.push({ date, volume: roundTo3(volume) });
-      }
-      await db.write();
+      stmts.upsertEjaculation.run({
+        $userId: userId,
+        $date: getToday(),
+        $volume: roundTo3(volume),
+      });
     },
 
     getEjaculationData(userId) {
-      const list = db.data.ejaculations[String(userId)];
-      return list ? list.slice() : [];
+      const rows = stmts.getEjaculationData.all({ $userId: userId }) as Array<
+        Pick<EjaculationRecord, "date" | "volume">
+      >;
+      return rows.map((row) => ({ date: row.date, volume: row.volume }));
     },
 
     getTodayEjaculationVolume(userId) {
-      const list = db.data.ejaculations[String(userId)];
-      if (!list) return 0;
-      const date = getToday();
-      const today = list.find((r) => r.date === date);
-      return today ? today.volume : 0;
+      const row = stmts.getTodayEjaculation.get({
+        $userId: userId,
+        $date: getToday(),
+      }) as { volume: number } | null;
+      return row?.volume ?? 0;
     },
 
     async punishInactiveUsers() {
       const now = nowSeconds();
+      const rows = stmts.selectAllUsers.all({}) as UserRow[];
       let touched = 0;
-      for (const row of Object.values(db.data.users)) {
-        if (now - row.lastMasturbationTime > 86400 && row.jjLength > 1) {
-          row.jjLength = roundTo3(row.jjLength - Math.random());
-          touched += 1;
+      const tx = db.transaction(() => {
+        for (const row of rows) {
+          if (
+            now - row.last_masturbation_time > 86400 &&
+            row.jj_length > 1
+          ) {
+            stmts.decrementJjLength.run({
+              $userId: row.user_id,
+              $jjLength: roundTo3(row.jj_length - Math.random()),
+            });
+            touched += 1;
+          }
         }
-      }
-      if (touched > 0) await db.write();
+      });
+      tx();
       return touched;
     },
 
     getRanking() {
-      const rows: RankEntry[] = [];
-      for (const [uid, data] of Object.entries(db.data.users)) {
-        rows.push({ userId: Number(uid), jjLength: data.jjLength });
-      }
-      rows.sort((a, b) => b.jjLength - a.jjLength);
-      return rows;
+      const rows = stmts.selectAllUsers.all({}) as UserRow[];
+      return rows
+        .map((row) => ({ userId: row.user_id, jjLength: row.jj_length }))
+        .sort((a, b) => b.jjLength - a.jjLength);
+    },
+
+    close() {
+      db.close();
     },
   };
 }
