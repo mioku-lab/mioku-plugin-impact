@@ -1,0 +1,84 @@
+{
+  "name": "mioku-plugin-impact",
+  "version": "1.0.0",
+  "description": "让群友们眼前一黑的淫趴插件",
+  "main": "index.ts",
+  "type": "module",
+  "keywords": [
+    "mioku",
+    "impact",
+    "牛子"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mioku-lab/mioku.git"
+  },
+  "mioku": {
+    "services": [
+      "screenshot",
+      "help",
+      "config"
+    ],
+    "help": {
+      "title": "淫趴 ",
+      "description": "让群友们眼前一黑的牛子比拼插件",
+      "commands": [
+        {
+          "cmd": "开启淫趴 / 禁止淫趴",
+          "desc": "在本群开启或关闭淫趴功能（管理员/群主/主人可用）",
+          "usage": "开启淫趴 / 关闭银趴",
+          "role": "admin"
+        },
+        {
+          "cmd": "打胶 / 开导",
+          "desc": "给自己的牛子增加一段随机长度",
+          "role": "member"
+        },
+        {
+          "cmd": "嗦牛子",
+          "desc": "嗦自己或被 @ 的群友的牛子，增加随机长度",
+          "usage": "嗦牛子 / 嗦牛子 @某人",
+          "role": "member"
+        },
+        {
+          "cmd": "pk / 对决",
+          "desc": "和 @ 的群友进行牛子对决，胜者抢走败者的随机长度",
+          "usage": "pk @某人",
+          "role": "member"
+        },
+        {
+          "cmd": "查询",
+          "desc": "查询自己或 @ 的群友的牛子长度",
+          "usage": "查询 / 查询 @某人",
+          "role": "member"
+        },
+        {
+          "cmd": "jj排行榜",
+          "desc": "查看牛子长度前五与倒数五名的图表",
+          "usage": "jj排行榜 / jjrank",
+          "role": "member"
+        },
+        {
+          "cmd": "日群友 / 透群友 / 透群主 / 透管理",
+          "desc": "随机或定向选取一位幸运儿进行注入，按命令决定身份",
+          "usage": "日群友 / 透群友 @某人 / 透群主 / 透管理",
+          "role": "member"
+        },
+        {
+          "cmd": "注入查询",
+          "desc": "查询当日或全部历史被注入量，加 历史/全部 看走势图",
+          "usage": "注入查询 / 注入查询 历史 / 注入查询 @某人 全部",
+          "role": "member"
+        }
+      ]
+    }
+  },
+  "peerDependencies": {
+    "mioku": "^0.8.0",
+    "mioki": "^0.16.0"
+  },
+  "devDependencies": {
+    "mioku": "workspace:*",
+    "mioki": "^0.16.0"
+  }
+}
