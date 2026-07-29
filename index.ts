@@ -1,4 +1,3 @@
-import type { ConfigService, ScreenshotService } from "mioku";
 import { definePlugin, type MiokiContext } from "mioki";
 import {
   cloneConfig,
@@ -6,6 +5,7 @@ import {
   normalizeImpactConfig,
   type ImpactConfig,
 } from "./configs/base";
+import { getService, Services } from "mioku";
 import { initImpactDatabase, type ImpactDatabase } from "./db";
 import { handleDajiao } from "./handlers/dajiao";
 import { handleOpenModule } from "./handlers/open-module";
@@ -39,9 +39,7 @@ const impactPlugin = definePlugin({
     }
 
     const cd = createCooldownState();
-    const screenshot = ctx.services?.screenshot as
-      | ScreenshotService
-      | undefined;
+    const screenshot = getService(ctx, Services.Screenshot);
     if (!screenshot) {
       ctx.logger.warn(
         "impact: screenshot 服务未启用, jj排行榜 / 注入查询历史图表将不可用",
@@ -49,7 +47,7 @@ const impactPlugin = definePlugin({
     }
 
     let config: ImpactConfig = cloneConfig(DEFAULT_CONFIG);
-    const configService = ctx.services?.config as ConfigService | undefined;
+    const configService = getService(ctx, Services.Config);
     if (configService) {
       await configService.registerConfig("impact", "base", config);
       const persisted = await configService.getConfig("impact", "base");
