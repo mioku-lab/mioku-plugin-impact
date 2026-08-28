@@ -9,7 +9,7 @@ export async function handlePk(h: HandlerContext): Promise<void> {
   if (!cdState.ok) {
     await event.reply(
       [
-        ctx.segment.at(Number(event.user_id)),
+        ctx.segment.at(String(event.user_id)),
         ctx.segment.text(
           `你已经pk不动了喵, 请等待${roundTo(cdState.remaining, 3)}秒后再pk喵`,
         ),
@@ -27,7 +27,7 @@ export async function handlePk(h: HandlerContext): Promise<void> {
   if (at === Number(uid)) {
     await event.reply(
       [
-        ctx.segment.at(Number(event.user_id)),
+        ctx.segment.at(String(event.user_id)),
         ctx.segment.text("你不能pk自己喵"),
       ],
       false,
@@ -45,7 +45,7 @@ export async function handlePk(h: HandlerContext): Promise<void> {
     clearCooldown(cd.pk, uid);
     await event.reply(
       [
-        ctx.segment.at(Number(event.user_id)),
+        ctx.segment.at(String(event.user_id)),
         ctx.segment.text(
           `你或对面还没有创建${pickJj()}喵, 咱全帮你创建了喵, 你们的${pickJj()}长度都是10cm喵`,
         ),
@@ -62,7 +62,7 @@ export async function handlePk(h: HandlerContext): Promise<void> {
     await db.addJjLength(at, -delta);
     await event.reply(
       [
-        ctx.segment.at(Number(event.user_id)),
+        ctx.segment.at(String(event.user_id)),
         ctx.segment.text(
           `对决胜利喵, 你的${pickJj()}增加了${roundTo(
             delta / 2,
@@ -77,7 +77,7 @@ export async function handlePk(h: HandlerContext): Promise<void> {
     await db.addJjLength(at, delta / 2);
     await event.reply(
       [
-        ctx.segment.at(Number(event.user_id)),
+        ctx.segment.at(String(event.user_id)),
         ctx.segment.text(
           `对决失败喵, 在对面牛子的阴影笼罩下你的${pickJj()}减小了${delta}cm喵, 对面增加了${roundTo(
             delta / 2,

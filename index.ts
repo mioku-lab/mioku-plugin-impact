@@ -1,4 +1,4 @@
-import { definePlugin, type MiokiContext } from "mioki";
+import { definePlugin, type MiokuContext } from "mioku";
 import {
   cloneConfig,
   DEFAULT_CONFIG,
@@ -25,7 +25,7 @@ const impactPlugin = definePlugin({
   version: "1.0.0",
   description: "让群友们眼前一黑的淫趴插件（牛子比拼），移植自 nonebot_plugin_impact",
 
-  async setup(ctx: MiokiContext) {
+  async setup(ctx: MiokuContext) {
     ctx.logger.info("impact 插件正在初始化...");
 
     let db: ImpactDatabase;
@@ -94,7 +94,7 @@ const impactPlugin = definePlugin({
         // 其余命令需要群开启了银趴
         if (!db.isGroupAllowed(Number(event.group_id))) {
           await event.reply(
-            [ctx.segment.at(Number(event.user_id)), ctx.segment.text(NOT_ALLOW_TEXT)],
+            [ctx.segment.at(String(event.user_id)), ctx.segment.text(NOT_ALLOW_TEXT)],
             false,
           );
           return;

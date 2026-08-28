@@ -9,7 +9,7 @@ export async function handleSuo(h: HandlerContext): Promise<void> {
   if (!cdState.ok) {
     await event.reply(
       [
-        ctx.segment.at(Number(event.user_id)),
+        ctx.segment.at(String(event.user_id)),
         ctx.segment.text(
           `你已经嗦不动了喵, 请等待${roundTo(cdState.remaining, 3)}秒后再嗦喵`,
         ),
@@ -27,7 +27,7 @@ export async function handleSuo(h: HandlerContext): Promise<void> {
       await db.addJjLength(Number(uid), delta);
       await event.reply(
         [
-          ctx.segment.at(Number(event.user_id)),
+          ctx.segment.at(String(event.user_id)),
           ctx.segment.text(
             `你的${pickJj()}很满意喵, 嗦长了${delta}cm喵, 目前长度为${db.getJjLength(
               Number(uid),
@@ -41,7 +41,7 @@ export async function handleSuo(h: HandlerContext): Promise<void> {
       clearCooldown(cd.suo, uid);
       await event.reply(
         [
-          ctx.segment.at(Number(event.user_id)),
+          ctx.segment.at(String(event.user_id)),
           ctx.segment.text(
             `你还没有创建${pickJj()}喵, 咱帮你创建了喵, 目前长度是10cm喵`,
           ),
@@ -57,7 +57,7 @@ export async function handleSuo(h: HandlerContext): Promise<void> {
     await db.addJjLength(at, delta);
     await event.reply(
       [
-        ctx.segment.at(Number(event.user_id)),
+        ctx.segment.at(String(event.user_id)),
         ctx.segment.text(
           `对方的${pickJj()}很满意喵, 嗦长了${delta}cm喵, 目前长度为${db.getJjLength(
             at,
@@ -71,7 +71,7 @@ export async function handleSuo(h: HandlerContext): Promise<void> {
     clearCooldown(cd.suo, uid);
     await event.reply(
       [
-        ctx.segment.at(Number(event.user_id)),
+        ctx.segment.at(String(event.user_id)),
         ctx.segment.text(
           `TA还没有创建${pickJj()}喵, 咱帮TA创建了喵, 目前长度是10cm喵`,
         ),

@@ -1,4 +1,4 @@
-import { isOwner } from "mioki";
+import { isOwner } from "mioku";
 import { isGroupAdmin } from "../utils";
 import type { HandlerContext } from "./types";
 

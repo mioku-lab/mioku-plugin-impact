@@ -1,4 +1,5 @@
-import type { MiokiContext } from "mioki";
+import type { MiokuContext } from "mioku";
+import { friendGetInfo } from "mioku";
 
 export const JJ_VARIABLES = ["牛子", "牛牛", "丁丁", "JJ"] as const;
 
@@ -67,16 +68,15 @@ export function getSenderName(event: any): string {
 }
 
 export async function getStrangerNickname(
-  ctx: MiokiContext,
+  ctx: MiokuContext,
   selfId: number,
   userId: number,
 ): Promise<string> {
   try {
-    const info = (await ctx
-      .pickBot(selfId)
-      .api("get_stranger_info", { user_id: userId, no_cache: false })) as
-      | { nickname?: string }
-      | undefined;
+    const bot = ctx.pickBot(String(selfId));
+    const info = bot
+      ? await bot.invoke(friendGetInfo, { user_id: String(userId) })
+      : undefined;
     const name = String(info?.nickname || "").trim();
     if (name) return name;
   } catch {

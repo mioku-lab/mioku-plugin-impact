@@ -1,4 +1,4 @@
-import { isOwner } from "mioki";
+import { isOwner } from "mioku";
 import { checkCooldown, clearCooldown, markCooldown } from "../state";
 import {
   getAtUserId,
@@ -35,7 +35,7 @@ export async function handleYinpa(
   if (!cdState.ok && !isOwner(event)) {
     await event.reply(
       [
-        ctx.segment.at(uid),
+        ctx.segment.at(String(uid)),
         ctx.segment.text(
           `你已经榨不出来任何东西了, 请先休息${roundTo(cdState.remaining, 3)}秒`,
         ),
@@ -50,9 +50,9 @@ export async function handleYinpa(
   const selfId = Number(event.self_id);
   let prepList: PrepMember[];
   try {
-    const raw = await ctx
-      .pickBot(selfId)
-      .api("get_group_member_list", { group_id: Number(event.group_id) });
+    const bot = ctx.pickBot(String(selfId));
+    if (!bot) throw new Error("bot not found");
+    const raw = await bot.sendApi("get_group_member_list", { group_id: String(event.group_id) });
     prepList = (raw as PrepMember[]) ?? [];
   } catch (err) {
     clearCooldown(cd.fuck, uidKey);

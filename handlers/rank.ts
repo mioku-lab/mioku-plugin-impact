@@ -26,7 +26,7 @@ export async function handleRank(h: HandlerContext): Promise<void> {
     await db.addNewUser(Number(event.user_id));
     await event.reply(
       [
-        ctx.segment.at(Number(event.user_id)),
+        ctx.segment.at(String(event.user_id)),
         ctx.segment.text(
           `你还没有创建${pickJj()}看不到rank喵, 咱帮你创建了喵, 目前长度是10cm喵`,
         ),
@@ -49,7 +49,7 @@ export async function handleRank(h: HandlerContext): Promise<void> {
 
   await event.reply(
     [
-      ctx.segment.at(Number(event.user_id)),
+      ctx.segment.at(String(event.user_id)),
       ctx.segment.image(imagePath),
       ctx.segment.text(`你的排名为${myIndex + 1}喵`),
     ],

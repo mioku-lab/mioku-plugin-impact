@@ -1,11 +1,11 @@
 import type { ScreenshotService } from "mioku";
-import type { MiokiContext } from "mioki";
+import type { MiokuContext } from "mioku";
 import type { ImpactConfig } from "../configs/base";
 import type { ImpactDatabase } from "../db";
 import type { CooldownState } from "../types";
 
 export interface HandlerContext {
-  ctx: MiokiContext;
+  ctx: MiokuContext;
   db: ImpactDatabase;
   cd: CooldownState;
   config: ImpactConfig;
