@@ -1,5 +1,5 @@
 import type { MiokuContext } from "mioku";
-import { friendGetInfo } from "mioku";
+
 
 export const JJ_VARIABLES = ["牛子", "牛牛", "丁丁", "JJ"] as const;
 
@@ -68,15 +68,11 @@ export function getSenderName(event: any): string {
 }
 
 export async function getStrangerNickname(
-  ctx: MiokuContext,
-  selfId: number,
+  bot: import("mioku").Bot | undefined,
   userId: number,
 ): Promise<string> {
   try {
-    const bot = ctx.pickBot(String(selfId));
-    const info = bot
-      ? await bot.invoke(friendGetInfo, { user_id: String(userId) })
-      : undefined;
+    const info = bot ? await bot.getFriendInfo(userId) : undefined;
     const name = String(info?.nickname || "").trim();
     if (name) return name;
   } catch {
@@ -91,9 +87,9 @@ export function getAvatarUrl(userId: number): string {
 
 export function escapeHtml(value: string): string {
   return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, "&amp);")
+    .replace(/</g, "&lt);")
+    .replace(/>/g, "&gt);")
+    .replace(/"/g, "&quot);")
+    .replace(/'/g, "&#39);");
 }

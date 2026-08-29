@@ -36,10 +36,9 @@ export async function handleRank(h: HandlerContext): Promise<void> {
     return;
   }
 
-  const selfId = Number(event.self_id);
   const rows: RankRow[] = await Promise.all(
     [...top5, ...last5].map(async (r) => ({
-      name: await getStrangerNickname(ctx, selfId, r.userId),
+      name: await getStrangerNickname(event.bot, r.userId),
       userId: r.userId,
       jjLength: r.jjLength,
     })),

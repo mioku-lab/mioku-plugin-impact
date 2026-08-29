@@ -47,13 +47,17 @@ export async function handleYinpa(
   markCooldown(cd.fuck, uidKey);
 
   const reqUserCard = getSenderName(event);
-  const selfId = Number(event.self_id);
   let prepList: PrepMember[];
   try {
-    const bot = ctx.pickBot(String(selfId));
+    const bot = h.event.bot;
     if (!bot) throw new Error("bot not found");
-    const raw = await bot.sendApi("get_group_member_list", { group_id: String(event.group_id) });
-    prepList = (raw as PrepMember[]) ?? [];
+    const members = await bot.getGroupMembers(String(event.group_id));
+    prepList = members.map((m: import("mioku").MemberInfo) => ({
+      user_id: Number(m.user_id),
+      role: (m.role as PrepMember["role"]) ?? "member",
+      card: m.card,
+      nickname: m.nickname,
+    }));
   } catch (err) {
     clearCooldown(cd.fuck, uidKey);
     ctx.logger.error(`impact: 获取群成员列表失败: ${err}`);
