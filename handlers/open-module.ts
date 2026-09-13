@@ -1,5 +1,4 @@
-import { isOwner } from "mioku";
-import { isGroupAdmin } from "../utils";
+import type { MiokuContext } from "mioku";
 import type { HandlerContext } from "./types";
 
 export async function handleOpenModule(
@@ -7,7 +6,8 @@ export async function handleOpenModule(
   enable: boolean,
 ): Promise<void> {
   const { ctx, db, event } = h;
-  if (!isOwner(event) && !isGroupAdmin(event)) {
+  const miokuCtx = ctx as MiokuContext;
+  if (!miokuCtx.isAdmin?.(event)) {
     await event.reply(
       [ctx.segment.text("权限不足喵, 仅管理员/群主/主人可以开关淫趴")],
       false,

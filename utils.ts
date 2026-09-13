@@ -54,11 +54,6 @@ export function isGroupEvent(event: any): boolean {
   return event?.message_type === "group" && event?.group_id != null;
 }
 
-export function isGroupAdmin(event: any): boolean {
-  const role = event?.sender?.role;
-  return role === "admin" || role === "owner";
-}
-
 export function getSenderName(event: any): string {
   const card = String(event?.sender?.card || "").trim();
   if (card) return card;

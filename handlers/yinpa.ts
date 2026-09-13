@@ -1,4 +1,4 @@
-import { isOwner } from "mioku";
+import type { MiokuContext } from "mioku";
 import { checkCooldown, clearCooldown, markCooldown } from "../state";
 import {
   getAtUserId,
@@ -27,12 +27,13 @@ export async function handleYinpa(
   subject: "owner" | "admin" | "member",
 ): Promise<void> {
   const { ctx, db, cd, config, event } = h;
+  const miokuCtx = ctx as MiokuContext;
   const uid = Number(event.user_id);
   const uidKey = String(uid);
 
   const cdState = checkCooldown(cd.fuck, uidKey, config.fuckCd);
   // 主人不受 CD 限制
-  if (!cdState.ok && !isOwner(event)) {
+  if (!cdState.ok && !miokuCtx.isMaster?.(event)) {
     await event.reply(
       [
         ctx.segment.at(String(uid)),
