@@ -22,8 +22,6 @@ import { NOT_ALLOW_TEXT, isGroupEvent } from "./utils";
 
 const impactPlugin = definePlugin({
   name: "impact",
-  version: "1.0.0",
-  description: "让群友们眼前一黑的淫趴插件（牛子比拼），移植自 nonebot_plugin_impact",
 
   async setup(ctx: MiokuContext) {
     ctx.logger.info("impact 插件正在初始化...");
