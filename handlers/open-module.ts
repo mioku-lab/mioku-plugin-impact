@@ -1,4 +1,3 @@
-import type { MiokuContext } from "mioku";
 import type { HandlerContext } from "./types";
 
 export async function handleOpenModule(
@@ -6,14 +5,6 @@ export async function handleOpenModule(
   enable: boolean,
 ): Promise<void> {
   const { ctx, db, event } = h;
-  const miokuCtx = ctx as MiokuContext;
-  if (!miokuCtx.isAdmin?.(event)) {
-    await event.reply(
-      [ctx.segment.text("权限不足喵, 仅管理员/群主/主人可以开关淫趴")],
-      false,
-    );
-    return;
-  }
   await db.setGroupAllow(Number(event.group_id), enable);
   await event.reply(
     [ctx.segment.text(enable ? "功能已开启喵" : "功能已禁用喵")],
