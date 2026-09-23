@@ -2,14 +2,14 @@ import type { MiokuContext } from "mioku";
 import { checkCooldown, clearCooldown, markCooldown } from "../state";
 import {
   getAtUserId,
-  getAvatarUrl,
   getSenderName,
+  resolveAvatarUrl,
   roundTo,
 } from "../utils";
 import type { HandlerContext } from "./types";
 
 interface PrepMember {
-  user_id: number;
+  user_id: string;
   role: "owner" | "admin" | "member";
   card?: string;
   nickname?: string;
@@ -28,15 +28,14 @@ export async function handleYinpa(
 ): Promise<void> {
   const { ctx, db, cd, config, event } = h;
   const miokuCtx = ctx as MiokuContext;
-  const uid = Number(event.user_id);
-  const uidKey = String(uid);
+  const uid = String(event.user_id ?? "").trim();
 
-  const cdState = checkCooldown(cd.fuck, uidKey, config.fuckCd);
+  const cdState = checkCooldown(cd.fuck, uid, config.fuckCd);
   // 主人不受 CD 限制
   if (!cdState.ok && !miokuCtx.isMaster?.(event)) {
     await event.reply(
       [
-        ctx.segment.at(String(uid)),
+        ctx.segment.at(uid),
         ctx.segment.text(
           `你已经榨不出来任何东西了, 请先休息${roundTo(cdState.remaining, 3)}秒`,
         ),
@@ -45,7 +44,7 @@ export async function handleYinpa(
     );
     return;
   }
-  markCooldown(cd.fuck, uidKey);
+  markCooldown(cd.fuck, uid);
 
   const reqUserCard = getSenderName(event);
   let prepList: PrepMember[];
@@ -54,19 +53,19 @@ export async function handleYinpa(
     if (!bot) throw new Error("bot not found");
     const members = await bot.getGroupMembers(String(event.group_id));
     prepList = members.map((m: import("mioku").MemberInfo) => ({
-      user_id: Number(m.user_id),
+      user_id: String(m.user_id ?? "").trim(),
       role: (m.role as PrepMember["role"]) ?? "member",
       card: m.card,
       nickname: m.nickname,
     }));
   } catch (err) {
-    clearCooldown(cd.fuck, uidKey);
+    clearCooldown(cd.fuck, uid);
     ctx.logger.error(`impact: 获取群成员列表失败: ${err}`);
     await event.reply([ctx.segment.text("喵喵喵? 拿不到群成员列表了！")], false);
     return;
   }
 
-  let lucky: number | null;
+  let lucky: string | null;
   if (subject === "owner") {
     lucky = await pickOwner(prepList, uid, reqUserCard, ctx, event);
   } else if (subject === "admin") {
@@ -76,7 +75,7 @@ export async function handleYinpa(
   }
   if (lucky == null) {
     // pickXxx 内部已 finish 并清掉 CD
-    clearCooldown(cd.fuck, uidKey);
+    clearCooldown(cd.fuck, uid);
     return;
   }
 
@@ -96,13 +95,14 @@ export async function handleYinpa(
     "群友";
   const todayTotal = db.getTodayEjaculationVolume(lucky);
   const seconds = 1 + Math.floor(Math.random() * 20);
+  const avatarUrl = resolveAvatarUrl(event, lucky);
 
   await event.reply(
     [
       ctx.segment.text(
         `好欸！${reqUserCard}(${uid})用时${seconds}秒 \n给 ${luckyCard}(${lucky}) 注入了${volume}毫升的脱氧核糖核酸, 当日总注入量为：${todayTotal}毫升\n`,
       ),
-      ctx.segment.image(getAvatarUrl(lucky)),
+      ...(avatarUrl ? [ctx.segment.image(avatarUrl)] : []),
     ],
     false,
   );
@@ -110,11 +110,11 @@ export async function handleYinpa(
 
 async function pickOwner(
   prepList: PrepMember[],
-  uid: number,
+  uid: string,
   reqUserCard: string,
   ctx: any,
   event: any,
-): Promise<number | null> {
+): Promise<string | null> {
   // 找不到群主时回退到自己
   const owner = prepList.find((p) => p.role === "owner");
   const lucky = owner?.user_id ?? uid;
@@ -131,12 +131,14 @@ async function pickOwner(
 
 async function pickAdmin(
   prepList: PrepMember[],
-  uid: number,
+  uid: string,
   reqUserCard: string,
   ctx: any,
   event: any,
-): Promise<number | null> {
-  let admins = prepList.filter((p) => p.role === "admin").map((p) => p.user_id);
+): Promise<string | null> {
+  let admins = prepList
+    .filter((p) => p.role === "admin")
+    .map((p) => p.user_id);
   if (admins.includes(uid)) {
     // 自己是管理的话移除自己
     admins = admins.filter((id) => id !== uid);
@@ -155,11 +157,11 @@ async function pickAdmin(
 
 async function pickMember(
   prepList: PrepMember[],
-  uid: number,
+  uid: string,
   reqUserCard: string,
   ctx: any,
   event: any,
-): Promise<number | null> {
+): Promise<string | null> {
   const at = getAtUserId(event.message);
   if (at != null) {
     // 有 @ 就直接指定目标，不播报抽取提示

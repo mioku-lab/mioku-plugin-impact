@@ -1,9 +1,10 @@
 import type { ScreenshotService } from "mioku";
-import { escapeHtml, getAvatarUrl } from "./utils";
+import { escapeHtml } from "./utils";
 
 export interface RankRow {
   name: string;
-  userId: number;
+  userId: string;
+  avatar?: string;
   jjLength: number;
 }
 
@@ -67,9 +68,14 @@ export async function renderRankChart(
       const center = trackLeft + trackWidth / 2;
       const barLeft = isPositive ? center : center - barWidth;
       const labelText = `${row.jjLength.toFixed(2)} cm`;
+      const avatar = String(row.avatar ?? "").trim();
       return `
         <div class="row" style="top:${headerHeight + i * rowHeight}px;">
-          <img class="avatar" src="${escapeHtml(getAvatarUrl(row.userId))}" />
+          ${
+            avatar
+              ? `<img class="avatar" src="${escapeHtml(avatar)}" />`
+              : ""
+          }
           <div class="name">${escapeHtml(truncate(row.name, 9))}</div>
           <div class="track" style="left:${trackLeft}px; width:${trackWidth}px;">
             <div class="axis"></div>

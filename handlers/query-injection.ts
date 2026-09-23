@@ -8,7 +8,7 @@ export async function handleQueryInjection(
 ): Promise<void> {
   const { ctx, db, screenshot, event } = h;
   const at = getAtUserId(event.message);
-  const target = at ?? Number(event.user_id);
+  const target = at ?? String(event.user_id ?? "").trim();
   // 有 @ 用"该用户"，无 @ 用"您"
   const replay1 = at != null ? "该用户" : "您";
 

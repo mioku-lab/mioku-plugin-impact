@@ -5,7 +5,7 @@ export interface EjaculationRecord {
 }
 
 export interface RankEntry {
-  userId: number;
+  userId: string;
   jjLength: number;
 }
 

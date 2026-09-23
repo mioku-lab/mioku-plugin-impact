@@ -10,17 +10,17 @@ import { getToday, nowSeconds } from "./utils";
 export const DEFAULT_JJ_LENGTH = 10.0;
 
 export interface ImpactDatabase {
-  isUserInTable(userId: number): boolean;
-  addNewUser(userId: number): Promise<void>;
-  updateActivity(userId: number): Promise<void>;
-  getJjLength(userId: number): number;
+  isUserInTable(userId: string): boolean;
+  addNewUser(userId: string): Promise<void>;
+  updateActivity(userId: string): Promise<void>;
+  getJjLength(userId: string): number;
   /** 累加长度（可负）。先确保用户存在再调用。 */
-  addJjLength(userId: number, delta: number): Promise<void>;
-  isGroupAllowed(groupId: number): boolean;
-  setGroupAllow(groupId: number, allow: boolean): Promise<void>;
-  insertEjaculation(userId: number, volume: number): Promise<void>;
-  getEjaculationData(userId: number): EjaculationRecord[];
-  getTodayEjaculationVolume(userId: number): number;
+  addJjLength(userId: string, delta: number): Promise<void>;
+  isGroupAllowed(groupId: string): boolean;
+  setGroupAllow(groupId: string, allow: boolean): Promise<void>;
+  insertEjaculation(userId: string, volume: number): Promise<void>;
+  getEjaculationData(userId: string): EjaculationRecord[];
+  getTodayEjaculationVolume(userId: string): number;
   /** 一天没活跃的用户随机扣 0–1cm（仅对 jj_length > 1 的用户生效） */
   punishInactiveUsers(): Promise<number>;
   /** 全表按 jjLength 倒序排列 */
@@ -29,9 +29,71 @@ export interface ImpactDatabase {
 }
 
 interface UserRow {
-  user_id: number;
+  user_id: string;
   jj_length: number;
   last_masturbation_time: number;
+}
+
+/**
+ * 旧库的 users.user_id / groups.group_id 是 INTEGER PRIMARY KEY(rowid 别名),
+ * 写入 openid 会抛 SQLiteError: datatype mismatch,这里重建成 TEXT 并保留原数据。
+ */
+function widenLegacyIdColumns(db: Database): void {
+  const rebuild = (
+    table: string,
+    idColumn: string,
+    createSql: string,
+    columns: string,
+  ): void => {
+    const info = db
+      .query(`PRAGMA table_info(${table})`)
+      .all() as Array<{ name?: string; type?: string }>;
+    const column = info.find((item) => item.name === idColumn);
+    if (!column || String(column.type ?? "").toUpperCase() === "TEXT") return;
+
+    db.exec("BEGIN");
+    try {
+      db.exec(`ALTER TABLE ${table} RENAME TO ${table}_legacy`);
+      db.exec(createSql);
+      db.exec(
+        `INSERT INTO ${table} (${columns})
+           SELECT ${columns
+             .split(",")
+             .map((name) =>
+               name.trim() === idColumn
+                 ? `CAST(${idColumn} AS TEXT)`
+                 : name.trim(),
+             )
+             .join(", ")}
+           FROM ${table}_legacy`,
+      );
+      db.exec(`DROP TABLE ${table}_legacy`);
+      db.exec("COMMIT");
+    } catch (err) {
+      db.exec("ROLLBACK");
+      throw err;
+    }
+  };
+
+  rebuild(
+    "users",
+    "user_id",
+    `CREATE TABLE users (
+       user_id TEXT PRIMARY KEY,
+       jj_length REAL NOT NULL,
+       last_masturbation_time INTEGER NOT NULL
+     )`,
+    "user_id, jj_length, last_masturbation_time",
+  );
+  rebuild(
+    "groups",
+    "group_id",
+    `CREATE TABLE groups (
+       group_id TEXT PRIMARY KEY,
+       allow INTEGER NOT NULL DEFAULT 0
+     )`,
+    "group_id, allow",
+  );
 }
 
 export async function initImpactDatabase(): Promise<ImpactDatabase> {
@@ -43,25 +105,27 @@ export async function initImpactDatabase(): Promise<ImpactDatabase> {
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
-      user_id INTEGER PRIMARY KEY,
+      user_id TEXT PRIMARY KEY,
       jj_length REAL NOT NULL,
       last_masturbation_time INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS groups (
-      group_id INTEGER PRIMARY KEY,
+      group_id TEXT PRIMARY KEY,
       allow INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS ejaculations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
+      user_id TEXT NOT NULL,
       date TEXT NOT NULL,
       volume REAL NOT NULL,
       UNIQUE(user_id, date)
     );
     CREATE INDEX IF NOT EXISTS idx_ejaculations_user ON ejaculations(user_id, date);
   `);
+
+  widenLegacyIdColumns(db);
 
   const stmts = {
     insertUser: db.prepare(`
@@ -214,7 +278,7 @@ export async function initImpactDatabase(): Promise<ImpactDatabase> {
     getRanking() {
       const rows = stmts.selectAllUsers.all({}) as UserRow[];
       return rows
-        .map((row) => ({ userId: row.user_id, jjLength: row.jj_length }))
+        .map((row) => ({ userId: String(row.user_id), jjLength: row.jj_length }))
         .sort((a, b) => b.jjLength - a.jjLength);
     },
 

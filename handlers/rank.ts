@@ -1,5 +1,5 @@
 import { renderRankChart, type RankRow } from "../image";
-import { getStrangerNickname, pickJj } from "../utils";
+import { getStrangerNickname, pickJj, resolveAvatarUrl } from "../utils";
 import type { HandlerContext } from "./types";
 
 export async function handleRank(h: HandlerContext): Promise<void> {
@@ -21,12 +21,14 @@ export async function handleRank(h: HandlerContext): Promise<void> {
   const top5 = ranking.slice(0, 5);
   const last5 = ranking.slice(-5);
 
-  const myIndex = ranking.findIndex((r) => r.userId === Number(event.user_id));
+  const myIndex = ranking.findIndex(
+    (r) => r.userId === String(event.user_id ?? "").trim(),
+  );
   if (myIndex < 0) {
-    await db.addNewUser(Number(event.user_id));
+    await db.addNewUser(String(event.user_id ?? "").trim());
     await event.reply(
       [
-        ctx.segment.at(String(event.user_id)),
+        ctx.segment.at(String(event.user_id ?? "").trim()),
         ctx.segment.text(
           `你还没有创建${pickJj()}看不到rank喵, 咱帮你创建了喵, 目前长度是10cm喵`,
         ),
@@ -40,6 +42,7 @@ export async function handleRank(h: HandlerContext): Promise<void> {
     [...top5, ...last5].map(async (r) => ({
       name: await getStrangerNickname(event.bot, r.userId),
       userId: r.userId,
+      avatar: resolveAvatarUrl(event, r.userId),
       jjLength: r.jjLength,
     })),
   );
@@ -48,7 +51,7 @@ export async function handleRank(h: HandlerContext): Promise<void> {
 
   await event.reply(
     [
-      ctx.segment.at(String(event.user_id)),
+      ctx.segment.at(String(event.user_id ?? "").trim()),
       ctx.segment.image(imagePath),
       ctx.segment.text(`你的排名为${myIndex + 1}喵`),
     ],
