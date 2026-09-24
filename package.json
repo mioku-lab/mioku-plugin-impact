@@ -1,6 +1,6 @@
 {
   "name": "mioku-plugin-impact",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "让群友们眼前一黑的淫趴插件",
   "main": "index.ts",
   "type": "module",
